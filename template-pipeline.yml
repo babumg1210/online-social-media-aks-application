@@ -1,0 +1,78 @@
+parameters:
+  - name: microservice
+    type: string
+  - name: dockerfilePath
+    type: string
+  - name: imageTagSuffix
+    type: string
+    default: '$(Build.BuildId)'
+  - name: azureSubscription
+    type: string
+  - name: imageName
+    type: string
+
+steps:
+# Replace tokens in manifest files
+- task: qetza.replacetokens.replacetokens-task.replacetokens@5
+  displayName: 'Replace tokens in manifests for $(microservice)'
+  inputs:
+    targetFiles: |
+      k8s/prod-manifests/$(microservice).yaml
+      k8s/prod-manifests/ingress-service.yaml
+      k8s/nats-eventhub.yaml
+      $(microservice)/.env
+    tokenPattern: custom
+    tokenPrefix: '--'
+    tokenSuffix: '--'
+    writeBOM: false
+    verbosity: off
+    actionOnMissing: fail
+    actionOnNoFiles: fail
+    defaultValue: '-$(Build.SourceBranchName)'
+
+# Build Docker image for the microservice
+- task: Docker@0
+  displayName: 'Build Docker image for $(microservice)'
+  inputs:
+    azureSubscription: ${{ parameters.azureSubscription }}  
+    azureContainerRegistry: '{"loginServer":"voterg.azurecr.io", "id" : "/subscriptions/a62b8882-3f1a-45ff-852f-3d4d1fe3ee13/resourceGroups/test-rg/providers/Microsoft.ContainerRegistry/registries/voterg"}'
+    dockerFile: ${{ parameters.dockerfilePath }}
+    imageName: ${{ parameters.imageName }}
+
+# Push Docker image to Azure Container Registry
+- task: Docker@0
+  displayName: 'Push Docker image for $(microservice)'
+  inputs:
+    azureSubscription: ${{ parameters.azureSubscription }} 
+    azureContainerRegistry: '{"loginServer":"voterg.azurecr.io", "id" : "/subscriptions/a62b8882-3f1a-45ff-852f-3d4d1fe3ee13/resourceGroups/test-rg/providers/Microsoft.ContainerRegistry/registries/voterg"}'
+    action: 'Push an image'
+    imageName: ${{ parameters.imageName }}
+
+# Replace image tag in manifest files after build
+- task: qetza.replacetokens.replacetokens-task.replacetokens@5
+  displayName: 'Replace image tag in manifests for $(microservice)'
+  inputs:
+    targetFiles: 'k8s/prod-manifests/${{ parameters.microservice }}.yaml'
+    tokenPattern: rm
+    writeBOM: false
+    verbosity: off
+    actionOnMissing: fail
+    actionOnNoFiles: fail
+    defaultValue: 'voterg.azurecr.io/${{ parameters.imageName }}'
+
+# Copy files to the build artifact staging directory
+- task: CopyFiles@2
+  displayName: 'Copy Files to: $(Build.ArtifactStagingDirectory)'
+  inputs:
+    Contents: |
+      k8s/prod-manifests/${{ parameters.microservice }}.yaml
+      k8s/prod-manifests/ingress-service.yaml
+      k8s/nats-eventhub.yaml
+      ui/.env
+    TargetFolder: '$(Build.ArtifactStagingDirectory)'
+    OverWrite: true
+    flattenFolders: true
+
+# Publish build artifacts
+- task: PublishBuildArtifacts@1
+  displayName: 'Publish Artifact for ${{ parameters.microservice }}'
