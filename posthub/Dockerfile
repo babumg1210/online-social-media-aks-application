@@ -1,4 +1,4 @@
-# Install dependencies and build the source code
+# Install dependencies and build the source code12
 FROM node:16-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
