@@ -1,0 +1,43 @@
+trigger:
+  - none  # No automatic trigger
+
+resources:
+  pipelines:
+    - pipeline: JavaCICDPipeline  # This is the alias that references the source pipeline
+      source: "JavaCICDPipeline"  # This is the actual name of the pipeline
+      trigger:
+        branches:
+          include:
+            - main  # Trigger the pipeline when there is a successful run in the main branch
+
+pool:
+  vmImage: 'ubuntu-latest'  # Using Ubuntu as the agent for the pipeline
+
+stages:
+  - stage: Deploy
+    displayName: 'Deploy the Application'
+    jobs:
+              steps:
+                - task: DownloadBuildArtifacts@1
+                  inputs:
+                    buildType: 'specific'  # Download artifacts from a specific pipeline
+                    project: '$(System.TeamProject)'  # Using the current project
+                    pipeline: 'JavaCICDPipeline'  # Alias to refer to the source pipeline
+                    runVersion: 'latest'  # Download the latest successful run of the pipeline
+                    downloadPath: '$(System.ArtifactsDirectory)'  # Directory to download the artifacts
+                    artifactName: 'drop'  # Artifact name to download
+                  displayName: 'Download Build Artifacts'
+                  displayName: 'Copy Files Over SSH'
+          
+
+                - task: KubernetesManifest@1
+                  inputs:
+                    action: 'deploy'
+                    connectionType: 'Azure Resource Manager'
+                    azureSubscription: 'test-aks-application12'
+                    azureResourceGroup: 'test-rg'
+                    kubernetesCluster: 'voting-app-aks'
+                    namespace: '$(namespace)'
+                    manifests: |
+                      $(Pipeline.Workspace)/manifests/deployment.yml
+                  displayName: 'Deploy to AKS'
