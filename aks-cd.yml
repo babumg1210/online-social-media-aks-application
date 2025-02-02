@@ -16,7 +16,7 @@ pool:
 stages:
   -  stage: Deploy
      jobs:
-       -  job: Deploy the application in aks
+       -  job: deploy_aks
           steps:
             - task: DownloadBuildArtifacts@1
               inputs:
