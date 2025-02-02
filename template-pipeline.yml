@@ -76,3 +76,8 @@ steps:
 # Publish build artifacts
 - task: PublishBuildArtifacts@1
   displayName: 'Publish Artifact for ${{ parameters.microservice }}'
+  inputs:
+    PathtoPublish: '$(Build.ArtifactStagingDirectory)'  # The path where the JAR file is copied
+    ArtifactName: '${{ parameters.microservice }}'  # Name of the artifact (can be anything, like 'build-output')
+    publishLocation: 'Container'  # Store the artifact in the Azure DevOps pipeline container
+  
