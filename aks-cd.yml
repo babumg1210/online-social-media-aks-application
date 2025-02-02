@@ -18,6 +18,11 @@ stages:
      jobs:
        -  job: deploy_aks
           steps:
-            - task: DownloadBuildArtifacts@1
-              inputs:
-                downloadPath: '$(System.ArtifactsDirectory)'
+          - task: DownloadBuildArtifacts@1
+            inputs:
+              buildType: 'specific'  # Download artifacts from a specific pipeline
+              project: '$(System.TeamProject)'  # Using the current project
+              pipeline: 'ci-social-media-aks-application'  # Alias to refer to the source pipeline
+              runVersion: 'latest'  # Download the latest successful run of the pipeline
+              downloadPath: '$(System.ArtifactsDirectory)'  # Directory to download the artifacts
+              artifactName: 'drop'  # Artifact name to download
