@@ -26,3 +26,28 @@ stages:
               runVersion: 'latest'  # Download the latest successful run of the pipeline
               downloadPath: '$(System.ArtifactsDirectory)'  # Directory to download the artifacts
               artifactName: 'drop'  # Artifact name to download
+
+          # ⛓️ Set AKS context
+          - task: AzureCLI@2
+            displayName: '🔐 Set AKS context'
+            inputs:
+              azureSubscription: '<Your Azure Service Connection Name>'  # Replace with your service connection
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                az aks get-credentials \
+                  --resource-group <your-aks-resource-group> \
+                  --name <your-aks-cluster-name> \
+                  --overwrite-existing
+
+          # 📦 Apply Kubernetes manifests
+          - task: Kubernetes@1
+            displayName: '🚀 Deploy Kubernetes Manifests'
+            inputs:
+              connectionType: 'Azure Resource Manager'
+              azureSubscription: '<Your Azure Service Connection Name>'  # Same as above
+              azureResourceGroup: '<your-aks-resource-group>'
+              kubernetesCluster: '<your-aks-cluster-name>'
+              command: apply
+              useConfigurationFile: true
+              configuration: '$(System.ArtifactsDirectory)/drop/deployment.yaml'  # adjust path if needed
